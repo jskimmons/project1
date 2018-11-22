@@ -153,42 +153,56 @@ def adduser():
 
 # TODO add subpage view with list of all posts in a subpage
 @app.route('/subpage/', methods=['GET'])
-def ():
+def subpage():
 
   # get sid of subpage trying to generate
   sid = request.args.get('sid')
 
   # query for all posts in this sid
-  cmd = 'SELECT * FROM post WHERE sid = :sid1';
-  cursor = g.conn.execute(text(cmd), sid1 = sid);
+  cmd = 'SELECT p.title, p.body, u.user_name FROM post p, users u WHERE p.uid = u.uid and p.sid = {};'.format(sid);
+  cursor = g.conn.execute(text(cmd));
 
   posts = []
   for result in cursor:
-    posts.append((result['title'], result['body'], result['uid']))
+    posts.append((result['title'], result['body'], result['user_name']))
 
-  context = dict(post_lst = posts)
+  cmd = 'SELECT sp_name, description FROM subpages WHERE sid = {};'.format(sid);
+  cursor = g.conn.execute(text(cmd));
 
-  return render_template("index.html", **context)
+  results = cursor.first()
+
+  subpage_title = results['sp_name']
+  subpage_desc = results['description']
+
+  context = dict(posts=posts, subpage_title=subpage_title, subpage_desc=subpage_desc)
+
+  return render_template("subpage.html", **context)
 
 
 # TODO add user view with list of all posts in a subpage
 @app.route('/user/', methods=['GET'])
-def ():
+def user():
 
   # get sid of subpage trying to generate
   uid = request.args.get('uid')
 
   # query for all posts in this sid
-  cmd = 'SELECT * FROM post WHERE uid = :uid1';
+  cmd = 'SELECT p.title, p.body, s.sp_name FROM post p, subpages s WHERE p.sid = s.sid and p.uid = {}'.format(uid);
   cursor = g.conn.execute(text(cmd), uid1 = uid);
 
   posts = []
   for result in cursor:
-    posts.append((result['title'], result['body'], result['sid']))
+    posts.append((result['title'], result['body'], result['sp_name']))
 
-  context = dict(post_lst = posts)
+  cmd = 'SELECT * FROM users WHERE uid = {}'.format(uid);
+  cursor = g.conn.execute(text(cmd), uid1 = uid);
 
-  return render_template("index.html", **context)
+  results = cursor.first()
+  user_name = results['user_name']
+
+  context = dict(posts=posts, user_name = user_name)
+
+  return render_template("user.html", **context)
 
 
 if __name__ == "__main__":
