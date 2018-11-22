@@ -1,0 +1,10 @@
+{% block body %}
+<form action="/adduser" method="POST">
+  <input type="username" name="username" placeholder="Username">
+  <input type="password" name="password" placeholder="Password">
+  <input type="confirmpass" name="confirmpass" placeholder="Confirm Password">
+  <input type="dob" name="dob" placeholder="Date of Birth"> <p> (Example: TODO)
+  <input type="email" name="email" placeholder="Email">
+  <input type="submit" value="Sign Up">
+</form>
+{% endblock %}
