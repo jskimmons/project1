@@ -18,7 +18,7 @@ Read about it online.
 import os
 from sqlalchemy import *
 from sqlalchemy.pool import NullPool
-from flask import Flask, request, render_template, g, redirect, Response
+from flask import Flask, request, render_template, g, redirect, Response, session, escape
 
 tmpl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 app = Flask(__name__, template_folder=tmpl_dir)
@@ -49,15 +49,12 @@ DATABASEURI = "postgresql://"+DB_USER+":"+DB_PASSWORD+"@"+DB_SERVER+"/w4111"
 #
 engine = create_engine(DATABASEURI)
 
+# generate secret key for use with sessions
+app.secret_key = os.urandom(12)
+
 
 # Here we create a test table and insert some values in it
-engine.execute("""DROP TABLE IF EXISTS test;""")
-engine.execute("""CREATE TABLE IF NOT EXISTS test (
-  id serial,
-  name text
-);""")
-engine.execute("""INSERT INTO test(name) VALUES ('grace hopper'), ('alan turing'), ('ada lovelace');""")
-
+# engine.execute("""DROP TABLE IF EXISTS test;""")
 
 
 @app.before_request
@@ -101,6 +98,7 @@ def teardown_request(exception):
 # see for routing: http://flask.pocoo.org/docs/0.10/quickstart/#routing
 # see for decorators: http://simeonfranklin.com/blog/2012/jul/1/python-decorators-in-12-steps/
 #
+
 @app.route('/')
 def index():
   """
@@ -114,19 +112,20 @@ def index():
   """
 
   # DEBUG: this is debugging code to see what request looks like
-  print request.args
+  # print request.args
+
+  if not session.get('logged_in'):
+    return render_template('login.html')
 
 
   #
   # example of a database query
   #
-  cursor = g.conn.execute("SELECT * FROM post;")
-  titles = []
-  bodys = []
-  for result in cursor:
-    titles.append(result['title'])
-    bodys.append(result['body'])
-  cursor.close()
+  # cursor = g.conn.execute("SELECT * FROM post;")
+  # titles = []
+  # for result in cursor:
+  #   titles.append(result['title'])
+  # cursor.close()
 
   #
   # Flask uses Jinja templates, which is an extension to HTML where you can
@@ -154,14 +153,38 @@ def index():
   #     <div>{{n}}</div>
   #     {% endfor %}
   #
-  context = dict(data = titles)
 
+  # example of context
+  context = dict(user = session['username'])
 
   #
   # render_template looks in the templates/ folder for files.
   # for example, the below file reads template/index.html
   #
   return render_template("index.html", **context)
+
+
+@app.route('/login', methods=['POST', 'GET'])
+def login():
+    # comes here after login.html form is filled out
+    # TODO change this logic to an sql query, add passwords to user table
+    check_pswd =  'select exists ( \
+                   select * \
+                   from users \
+                   where user_name = \'' + request.form['username'] + '\' and password = \'' + request.form['password'] + '\');';
+    
+    cursor = g.conn.execute(text(check_pswd))
+    result_lst = []
+    for result in cursor:
+      result_lst.append(result['exists'])
+    cursor.close()
+
+    if result_lst[0]:
+        session['logged_in'] = True
+        session['username'] = request.form['username']
+        return redirect('/')
+    else:
+      return render_template('login.html')
 
 #
 # This is an example of a different path.  You can see it at
@@ -184,12 +207,6 @@ def add():
   cmd = 'INSERT INTO test(name) VALUES (:name1), (:name2)';
   g.conn.execute(text(cmd), name1 = name, name2 = name);
   return redirect('/')
-
-
-@app.route('/login')
-def login():
-    abort(401)
-    this_is_never_executed()
 
 
 if __name__ == "__main__":
