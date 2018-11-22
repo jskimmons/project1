@@ -116,8 +116,6 @@ def index():
 
   if not session.get('logged_in'):
     return render_template('login.html')
-  else:
-    return 'Logged in as %s' % escape(session['username'])
 
 
   #
@@ -155,8 +153,9 @@ def index():
   #     <div>{{n}}</div>
   #     {% endfor %}
   #
-  context = dict(user = session['username'], data = titles)
 
+  # example of context
+  context = dict(user = session['username'])
 
   #
   # render_template looks in the templates/ folder for files.
@@ -165,13 +164,27 @@ def index():
   return render_template("index.html", **context)
 
 
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['POST', 'GET'])
 def login():
-    # TODO change this logic to an sql query
-    if request.form['password'] == 'password' and request.form['username'] == 'admin':
+    # comes here after login.html form is filled out
+    # TODO change this logic to an sql query, add passwords to user table
+    check_pswd =  'select exists ( \
+                   select * \
+                   from users \
+                   where user_name = \'' + request.form['username'] + '\' and password = \'' + request.form['password'] + '\');';
+    
+    cursor = g.conn.execute(text(check_pswd))
+    result_lst = []
+    for result in cursor:
+      result_lst.append(result['exists'])
+    cursor.close()
+
+    if result_lst[0]:
         session['logged_in'] = True
+        session['username'] = request.form['username']
+        return redirect('/')
     else:
-      return 'Incorrect'
+      return render_template('login.html')
 
 #
 # This is an example of a different path.  You can see it at
