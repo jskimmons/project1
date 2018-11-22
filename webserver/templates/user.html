@@ -1,0 +1,37 @@
+<html>
+  <style>
+    body{ 
+      font-size: 15pt;
+      font-family: arial;
+    }
+    div{
+      border-width:2px;
+      border-style:solid;
+      border-color:black;
+    }
+  </style>
+
+
+<body>
+  <h1>Welcome to {{user_name}}'s Page!</h1>
+
+  <div>
+    {% for title, body, sp_name in posts %}
+      <div>
+        <p>{{sp_name}}</p>
+        <h3>{{title}}</h3>
+        <p>{{body}}</p>
+      </div>
+    {% endfor %}
+  </div>
+
+<p><a href="/newuser">Sign up!</a></p>
+
+<!-- <form method="POST" action="/add">
+<p>Name of new computer scientist: <input type="text" name="name"> <input type="submit" value="Add"></p>
+</form> -->
+
+</body>
+
+
+</html>

@@ -19,7 +19,6 @@ import os
 from sqlalchemy import *
 from sqlalchemy.pool import NullPool
 from flask import Flask, request, render_template, g, redirect, Response, session, escape, flash
-from datetime import datetime
 
 tmpl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 app = Flask(__name__, template_folder=tmpl_dir)
@@ -85,75 +84,12 @@ def teardown_request(exception):
   except Exception as e:
     pass
 
-
-#
-# @app.route is a decorator around index() that means:
-#   run index() whenever the user tries to access the "/" path using a GET request
-#
-# If you wanted the user to go to e.g., localhost:8111/foobar/ with POST or GET then you could use
-#
-#       @app.route("/foobar/", methods=["POST", "GET"])
-#
-# PROTIP: (the trailing / in the path is important)
-# 
-# see for routing: http://flask.pocoo.org/docs/0.10/quickstart/#routing
-# see for decorators: http://simeonfranklin.com/blog/2012/jul/1/python-decorators-in-12-steps/
-#
-
 @app.route('/')
 def index():
-  """
-  request is a special object that Flask provides to access web request information:
 
-  request.method:   "GET" or "POST"
-  request.form:     if the browser submitted a form, this contains the data in the form
-  request.args:     dictionary of URL arguments e.g., {a:1, b:2} for http://localhost?a=1&b=2
-
-  See its API: http://flask.pocoo.org/docs/0.10/api/#incoming-request-data
-  """
-
-  # DEBUG: this is debugging code to see what request looks like
-  # print request.args
-
+  # if user not logged in, redirect them to login
   if not session.get('logged_in'):
     return render_template('login.html')
-
-
-  #
-  # example of a database query
-  #
-  # cursor = g.conn.execute("SELECT * FROM post;")
-  # titles = []
-  # for result in cursor:
-  #   titles.append(result['title'])
-  # cursor.close()
-
-  #
-  # Flask uses Jinja templates, which is an extension to HTML where you can
-  # pass data to a template and dynamically generate HTML based on the data
-  # (you can think of it as simple PHP)
-  # documentation: https://realpython.com/blog/python/primer-on-jinja-templating/
-  #
-  # You can see an example template in templates/index.html
-  #
-  # context are the variables that are passed to the template.
-  # for example, "data" key in the context variable defined below will be 
-  # accessible as a variable in index.html:
-  #
-  #     # will print: [u'grace hopper', u'alan turing', u'ada lovelace']
-  #     <div>{{data}}</div>
-  #     
-  #     # creates a <div> tag for each element in data
-  #     # will print: 
-  #     #
-  #     #   <div>grace hopper</div>
-  #     #   <div>alan turing</div>
-  #     #   <div>ada lovelace</div>
-  #     #
-  #     {% for n in data %}
-  #     <div>{{n}}</div>
-  #     {% endfor %}
-  #
 
   # example of context
   cmd = "SELECT * FROM subpages"
@@ -164,21 +100,22 @@ def index():
   	subpage_tups.append(sub_tup)
   context = dict(user = session['username'], subpages = subpage_tups)
 
-  #
-  # render_template looks in the templates/ folder for files.
-  # for example, the below file reads template/index.html
-  #
+  # render index.html for a given user
   return render_template("index.html", **context)
 
 
 @app.route('/login', methods=['POST', 'GET'])
 def login():
-    # comes here after login.html form is filled out
-    # TODO change this logic to an sql query, add passwords to user table
+    
+    # logic to check if a username / password combo is valid
+    # plaintext for now
+
     check_pswd =  'select exists ( \
                    select * \
                    from users \
-                   where user_name = \'' + request.form['username'] + '\' and password = \'' + request.form['password'] + '\');';
+                   where \
+                   user_name = \'' + request.form['username'] + '\' and \
+                   password = \'' + request.form['password'] + '\');';
     
     cursor = g.conn.execute(text(check_pswd))
     result_lst = []
@@ -186,29 +123,27 @@ def login():
       result_lst.append(result['exists'])
     cursor.close()
 
+    # allow user to access their homepage if they are logged in
     if result_lst[0]:
-        session['logged_in'] = True
-        session['username'] = request.form['username']
-        return redirect('/')
+      session['logged_in'] = True
+      session['username'] = request.form['username']
+
+      getuid_cmd = 'select uid from users where user_name = \'{}\';'.format(session['username'])
+      cursor = g.conn.execute(text(getuid_cmd))
+      session['uid'] = cursor.first()['uid']
+
+      return redirect('/')
     else:
       return render_template('login.html')
 
-#
-# This is an example of a different path.  You can see it at
-# 
-#     localhost:8111/another
-#
-# notice that the functio name is another() rather than index()
-# the functions for each app.route needs to have different names
-#
-@app.route('/another')
-def another():
-  return render_template("anotherfile.html")
 
+# render a page to create a new user
 @app.route('/newuser', methods=['GET'])
 def newuser():
   return render_template("newuser.html")
 
+
+# logic to add new user to a database
 @app.route('/adduser', methods=['POST'])
 def adduser():
   username = request.form['username']
@@ -225,18 +160,79 @@ def adduser():
 
   cmd = 'INSERT INTO users(user_name, password, email, dob) VALUES (:username1, :password1, :email1, :dob1)';
   g.conn.execute(text(cmd), username1 = username, password1 = password, email1 = email, dob1 = dob);
+
+  session['username'] = username
+  
+  getuid_cmd = 'select uid from users where user_name = \'{}\';'.format(session['username'])
+  cursor = g.conn.execute(text(getuid_cmd))
+  
+  session['uid'] = cursor.first()['uid']
+
+  session['logged_in'] = True
+
   return redirect('/')
 
+# TODO add subpage view with list of all posts in a subpage
+@app.route('/subpage/', methods=['GET'])
+def subpage():
 
-# Example of adding new data to the database
-@app.route('/add', methods=['POST'])
-def add():
-  name = request.form['name']
-  print name
-  cmd = 'INSERT INTO test(name) VALUES (:name1), (:name2)';
-  g.conn.execute(text(cmd), name1 = name, name2 = name);
-  return redirect('/')
+  # get sid of subpage trying to generate
+  sid = request.args.get('sid')
 
+  # query for all posts in this sid
+  cmd = 'SELECT p.title, p.body, u.user_name FROM post p, users u WHERE p.uid = u.uid and p.sid = {};'.format(sid);
+  cursor = g.conn.execute(text(cmd));
+
+  posts = []
+  for result in cursor:
+    posts.append((result['title'], result['body'], result['user_name']))
+
+  cmd = 'SELECT sp_name, description FROM subpages WHERE sid = {};'.format(sid);
+  cursor = g.conn.execute(text(cmd));
+
+  results = cursor.first()
+
+  subpage_title = results['sp_name']
+  subpage_desc = results['description']
+
+  context = dict(posts=posts, subpage_title=subpage_title, subpage_desc=subpage_desc, sid=sid)
+
+  return render_template("subpage.html", **context)
+
+
+# TODO add user view with list of all posts in a subpage
+@app.route('/user/', methods=['GET'])
+def user():
+
+  # get sid of subpage trying to generate
+  uid = request.args.get('uid')
+
+  # query for all posts in this sid
+  cmd = 'SELECT p.title, p.body, s.sp_name FROM post p, subpages s WHERE p.sid = s.sid and p.uid = {}'.format(uid);
+  cursor = g.conn.execute(text(cmd), uid1 = uid);
+
+  posts = []
+  for result in cursor:
+    posts.append((result['title'], result['body'], result['sp_name']))
+
+  cmd = 'SELECT * FROM users WHERE uid = {}'.format(uid);
+  cursor = g.conn.execute(text(cmd), uid1 = uid);
+
+  results = cursor.first()
+  user_name = results['user_name']
+
+  context = dict(posts=posts, user_name = user_name, uid=uid)
+
+  return render_template("user.html", **context)
+
+@app.route('/followSubpage/', methods=['POST'])
+def followSubpage():
+  sid = request.args.get('sid')
+  uid = session['uid']
+
+  insert_follow_cmd = 'INSERT INTO follows(sid, uid) VALUES (:sid1, :uid1)';
+  g.conn.execute(text(insert_follow_cmd), sid1 = sid, uid1 = uid);
+  return redirect('/subpage/?sid={}'.format(sid))
 
 if __name__ == "__main__":
   import click
