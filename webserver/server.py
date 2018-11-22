@@ -171,6 +171,26 @@ def ():
   return render_template("index.html", **context)
 
 
+# TODO add user view with list of all posts in a subpage
+@app.route('/user/', methods=['GET'])
+def ():
+
+  # get sid of subpage trying to generate
+  uid = request.args.get('uid')
+
+  # query for all posts in this sid
+  cmd = 'SELECT * FROM post WHERE uid = :uid1';
+  cursor = g.conn.execute(text(cmd), uid1 = uid);
+
+  posts = []
+  for result in cursor:
+    posts.append((result['title'], result['body'], result['sid']))
+
+  context = dict(post_lst = posts)
+
+  return render_template("index.html", **context)
+
+
 if __name__ == "__main__":
   import click
 
