@@ -15,6 +15,14 @@
     <div>{{n}}</div>
     {% endfor %}
   </div> -->
+  <h3>Here Are Some Awesome Subpages!!!</h3>
+  {% for page in subpages %}
+    <div>
+      <a href="/subpage/?sid={{ page[0] }}">{{ page[1] }}</a>
+      <p>{{ page[2] }}</p>
+    </div>
+  {% endfor %}
+  </ul>
 
 <p><a href="/newuser">Sign up!</a></p>
 

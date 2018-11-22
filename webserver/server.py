@@ -156,7 +156,13 @@ def index():
   #
 
   # example of context
-  context = dict(user = session['username'])
+  cmd = "SELECT * FROM subpages"
+  cursor = g.conn.execute(text(cmd))
+  subpage_tups = []
+  for result in cursor:
+  	sub_tup = (result["sid"], result["sp_name"], result["description"])
+  	subpage_tups.append(sub_tup)
+  context = dict(user = session['username'], subpages = subpage_tups)
 
   #
   # render_template looks in the templates/ folder for files.
