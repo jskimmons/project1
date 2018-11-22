@@ -18,7 +18,8 @@ Read about it online.
 import os
 from sqlalchemy import *
 from sqlalchemy.pool import NullPool
-from flask import Flask, request, render_template, g, redirect, Response, session, escape
+from flask import Flask, request, render_template, g, redirect, Response, session, escape, flash
+from datetime import datetime
 
 tmpl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 app = Flask(__name__, template_folder=tmpl_dir)
@@ -197,6 +198,28 @@ def login():
 @app.route('/another')
 def another():
   return render_template("anotherfile.html")
+
+@app.route('/newuser', methods=['GET'])
+def newuser():
+  return render_template("newuser.html")
+
+@app.route('/adduser', methods=['POST'])
+def adduser():
+  username = request.form['username']
+  password = request.form['password']
+  email = request.form['email']
+  dob = request.form['dob']
+  confirmpass = request.form['confirmpass']
+
+  if password != confirmpass:
+    flash("Passwords do not match!")
+    return redirect('/newuser')
+
+    # TODO maybe check username already used? email too?
+
+  cmd = 'INSERT INTO users(user_name, password, email, dob) VALUES (:username1, :password1, :email1, :dob1)';
+  g.conn.execute(text(cmd), username1 = username, password1 = password, email1 = email, dob1 = dob);
+  return redirect('/')
 
 
 # Example of adding new data to the database
