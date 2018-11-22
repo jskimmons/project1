@@ -4,19 +4,31 @@
       font-size: 15pt;
       font-family: arial;
     }
+    div{
+      border-width:2px;
+      border-style:solid;
+      border-color:black;
+    }
   </style>
 
 
 <body>
   <h1>Welcome to {{subpage_title}}!</h1>
   <h2>{{subpage_desc}}</h2>
+  <form action="/followSubpage/?sid={{sid}}" method="post">
+    <button name="followSubpageBtn" type="submit">Follow {{subpage_title}}</button>
+  </form>
+
+  <form action="/" method="get">
+    <button name="returnHomeBtn" type="submit">Back to homepage!</button>
+  </form>
 
   <div>
     {% for title, body, user_name in posts %}
       <div>
         <h3>{{title}}</h3>
         <p>Posted by: {{user_name}}</p>
-        <div>{{body}}</div>
+        <p>{{body}}</p>
       </div>
     {% endfor %}
   </div>
@@ -28,6 +40,5 @@
 </form> -->
 
 </body>
-
 
 </html>

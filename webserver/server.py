@@ -119,9 +119,14 @@ def login():
 
     # allow user to access their homepage if they are logged in
     if result_lst[0]:
-        session['logged_in'] = True
-        session['username'] = request.form['username']
-        return redirect('/')
+      session['logged_in'] = True
+      session['username'] = request.form['username']
+
+      getuid_cmd = 'select uid from users where user_name = \'{}\';'.format(session['username'])
+      cursor = g.conn.execute(text(getuid_cmd))
+      session['uid'] = cursor.first()['uid']
+
+      return redirect('/')
     else:
       return render_template('login.html')
 
@@ -149,6 +154,16 @@ def adduser():
 
   cmd = 'INSERT INTO users(user_name, password, email, dob) VALUES (:username1, :password1, :email1, :dob1)';
   g.conn.execute(text(cmd), username1 = username, password1 = password, email1 = email, dob1 = dob);
+
+  session['username'] = username
+  
+  getuid_cmd = 'select uid from users where user_name = \'{}\';'.format(session['username'])
+  cursor = g.conn.execute(text(getuid_cmd))
+  
+  session['uid'] = cursor.first()['uid']
+
+  session['logged_in'] = True
+
   return redirect('/')
 
 # TODO add subpage view with list of all posts in a subpage
@@ -174,7 +189,7 @@ def subpage():
   subpage_title = results['sp_name']
   subpage_desc = results['description']
 
-  context = dict(posts=posts, subpage_title=subpage_title, subpage_desc=subpage_desc)
+  context = dict(posts=posts, subpage_title=subpage_title, subpage_desc=subpage_desc, sid=sid)
 
   return render_template("subpage.html", **context)
 
@@ -200,10 +215,18 @@ def user():
   results = cursor.first()
   user_name = results['user_name']
 
-  context = dict(posts=posts, user_name = user_name)
+  context = dict(posts=posts, user_name = user_name, uid=uid)
 
   return render_template("user.html", **context)
 
+@app.route('/followSubpage/', methods=['POST'])
+def followSubpage():
+  sid = request.args.get('sid')
+  uid = session['uid']
+
+  insert_follow_cmd = 'INSERT INTO follows(sid, uid) VALUES (:sid1, :uid1)';
+  g.conn.execute(text(insert_follow_cmd), sid1 = sid, uid1 = uid);
+  return redirect('/subpage/?sid={}'.format(sid))
 
 if __name__ == "__main__":
   import click
