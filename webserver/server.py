@@ -91,13 +91,22 @@ def index():
   if not session.get('logged_in'):
     return render_template('login.html')
 
-  # example of context
-  cmd = "SELECT * FROM subpages"
+  curr_user = session['username']
+  cmd = "SELECT uid FROM users WHERE user_name = '{}'".format(curr_user)
+  cursor = g.conn.execute(text(cmd))
+  user_id = 0
+  for result in cursor:
+  	user_id = result["uid"]
+
+  cmd = "SELECT sid, sp_name, description "\
+  		"FROM subpages NATURAL JOIN follows "\
+  		"WHERE uid = {}".format(user_id)
   cursor = g.conn.execute(text(cmd))
   subpage_tups = []
   for result in cursor:
   	sub_tup = (result["sid"], result["sp_name"], result["description"])
   	subpage_tups.append(sub_tup)
+  	
   context = dict(user = session['username'], subpages = subpage_tups)
 
   # render index.html for a given user
