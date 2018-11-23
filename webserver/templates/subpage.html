@@ -30,11 +30,12 @@
   </form>
 
   <div>
-    {% for title, body, user_name, uid in posts %}
+    {% for title, body, user_name, uid, vote_count in posts %}
       <div>
         <h3>{{title}}</h3>
         <p>{{body}}</p>
         <p>Posted by: <a href="/user/?uid={{uid}}">{{user_name}}</a></p>
+        <p>votes: {{vote_count}}</p>
       </div>
     {% endfor %}
   </div>

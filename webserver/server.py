@@ -191,12 +191,22 @@ def subpage():
   sid = request.args.get('sid')
 
   # query for all posts in this sid
-  cmd = 'SELECT p.title, p.body, u.user_name, u.uid FROM post p, users u WHERE p.uid = u.uid and p.sid = {};'.format(sid);
+  # cmd = 'SELECT p.title, p.body, u.user_name, u.uid FROM post p, users u WHERE p.uid = u.uid and p.sid = {};'.format(sid);
+
+  # gets all posts ordered by number of votes
+  cmd = '''
+          select p.title, p.body, u.uid, u.user_name, count(v.*) as vote_count
+          from post p left outer join vote v on p.pid = v.pid, users u
+          where p.uid = u.uid and p.sid = {}
+          group by p.pid, p.title, p.body, u.uid, u.user_name
+          order by count(v.*) desc;
+        '''.format(sid)
+
   cursor = g.conn.execute(text(cmd));
 
   posts = []
   for result in cursor:
-    posts.append((result['title'], result['body'], result['user_name'], result['uid']))
+    posts.append((result['title'], result['body'], result['user_name'], result['uid'], result['vote_count']))
 
   cmd = 'SELECT sp_name, description FROM subpages WHERE sid = {};'.format(sid);
   cursor = g.conn.execute(text(cmd));
@@ -219,14 +229,23 @@ def user():
 
   # query for all posts in this sid
   cmd = 'SELECT p.title, p.body, s.sp_name, s.sid FROM post p, subpages s WHERE p.sid = s.sid and p.uid = {}'.format(uid);
-  cursor = g.conn.execute(text(cmd), uid1 = uid);
+
+  cmd = '''
+          select p.title, p.body, s.sp_name, s.sid, count(v.*) as vote_count
+          from post p left outer join vote v on p.pid = v.pid, subpages s
+          where p.sid = s.sid and p.uid = {}
+          group by p.pid, p.title, p.body, s.sid, s.sp_name
+          order by count(v.*) desc;
+        '''.format(uid)
+  
+  cursor = g.conn.execute(text(cmd));
 
   posts = []
   for result in cursor:
-    posts.append((result['title'], result['body'], result['sp_name'], result['sid']))
+    posts.append((result['title'], result['body'], result['sp_name'], result['sid'], result['vote_count']))
 
   cmd = 'SELECT * FROM users WHERE uid = {}'.format(uid);
-  cursor = g.conn.execute(text(cmd), uid1 = uid);
+  cursor = g.conn.execute(text(cmd));
 
   results = cursor.first()
   user_name = results['user_name']
