@@ -191,12 +191,12 @@ def subpage():
   sid = request.args.get('sid')
 
   # query for all posts in this sid
-  cmd = 'SELECT p.title, p.body, u.user_name FROM post p, users u WHERE p.uid = u.uid and p.sid = {};'.format(sid);
+  cmd = 'SELECT p.title, p.body, u.user_name, u.uid FROM post p, users u WHERE p.uid = u.uid and p.sid = {};'.format(sid);
   cursor = g.conn.execute(text(cmd));
 
   posts = []
   for result in cursor:
-    posts.append((result['title'], result['body'], result['user_name']))
+    posts.append((result['title'], result['body'], result['user_name'], result['uid']))
 
   cmd = 'SELECT sp_name, description FROM subpages WHERE sid = {};'.format(sid);
   cursor = g.conn.execute(text(cmd));
@@ -218,12 +218,12 @@ def user():
   uid = request.args.get('uid')
 
   # query for all posts in this sid
-  cmd = 'SELECT p.title, p.body, s.sp_name FROM post p, subpages s WHERE p.sid = s.sid and p.uid = {}'.format(uid);
+  cmd = 'SELECT p.title, p.body, s.sp_name, s.sid FROM post p, subpages s WHERE p.sid = s.sid and p.uid = {}'.format(uid);
   cursor = g.conn.execute(text(cmd), uid1 = uid);
 
   posts = []
   for result in cursor:
-    posts.append((result['title'], result['body'], result['sp_name']))
+    posts.append((result['title'], result['body'], result['sp_name'], result['sid']))
 
   cmd = 'SELECT * FROM users WHERE uid = {}'.format(uid);
   cursor = g.conn.execute(text(cmd), uid1 = uid);

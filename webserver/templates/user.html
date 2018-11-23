@@ -21,9 +21,9 @@
   </form>
 
   <div>
-    {% for title, body, sp_name in posts %}
+    {% for title, body, sp_name, sid in posts %}
       <div>
-        <p>{{sp_name}}</p>
+        <p><a href="/subpage/?sid={{sid}}">{{sp_name}}</a></p>
         <h3>{{title}}</h3>
         <p>{{body}}</p>
       </div>
