@@ -103,6 +103,12 @@ def index():
   # render index.html for a given user
   return render_template("index.html", **context)
 
+@app.route('/logout', methods=['GET'])
+def logout():
+  session.pop('username')
+  session.pop('uid')
+  session['logged_in'] = False
+  return redirect('/')
 
 @app.route('/login', methods=['POST', 'GET'])
 def login():
@@ -141,6 +147,11 @@ def login():
 @app.route('/newuser', methods=['GET'])
 def newuser():
   return render_template("newuser.html")
+
+# render a page to create a new subpage
+@app.route('/newsubpage', methods=['GET'])
+def newsubpage():
+  return render_template("newsubpage.html")
 
 
 # logic to add new user to a database
@@ -199,7 +210,6 @@ def subpage():
 
   return render_template("subpage.html", **context)
 
-
 # TODO add user view with list of all posts in a subpage
 @app.route('/user/', methods=['GET'])
 def user():
@@ -233,6 +243,30 @@ def followSubpage():
   insert_follow_cmd = 'INSERT INTO follows(sid, uid) VALUES (:sid1, :uid1)';
   g.conn.execute(text(insert_follow_cmd), sid1 = sid, uid1 = uid);
   return redirect('/subpage/?sid={}'.format(sid))
+
+# logic to add new user to a database
+@app.route('/addpost/', methods=['POST'])
+def addpost():
+  uid = session['uid']
+  sid = request.args.get('sid')
+  title = request.form['title']
+  body = request.form['body']
+
+  cmd = 'INSERT INTO post(uid, sid, title, body, date_posted) VALUES ({}, {}, \'{}\', \'{}\', now())'.format(uid, sid, title, body);
+  g.conn.execute(text(cmd));
+
+  return redirect('/subpage/?sid={}'.format(sid))
+
+# logic to add new user to a database
+@app.route('/addsubpage', methods=['POST'])
+def addsubpage():
+  sp_name = request.form['sp_name']
+  description = request.form['description']
+
+  cmd = 'INSERT INTO subpages(sp_name, description) VALUES (\'{}\', \'{}\')'.format(sp_name, description);
+  g.conn.execute(text(cmd));
+
+  return redirect('/')
 
 if __name__ == "__main__":
   import click
