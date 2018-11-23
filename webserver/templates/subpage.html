@@ -1,3 +1,5 @@
+{% block body %}
+{% if session['logged_in'] %}
 <html>
   <style>
     body{ 
@@ -16,11 +18,15 @@
   <h1>Welcome to {{subpage_title}}!</h1>
   <h2>{{subpage_desc}}</h2>
   <form action="/followSubpage/?sid={{sid}}" method="post">
-    <button name="followSubpageBtn" type="submit">Follow {{subpage_title}}</button>
+    <button type="submit">Follow {{subpage_title}}</button>
   </form>
 
   <form action="/" method="get">
     <button type="submit">Back to homepage!</button>
+  </form>
+
+  <form action="/logout" method="get">
+    <button type="submit">Logout</button>
   </form>
 
   <div>
@@ -35,9 +41,18 @@
 
 <p><a href="/newuser">Sign up!</a></p>
 
-<!-- <form method="POST" action="/add">
-<p>Name of new computer scientist: <input type="text" name="name"> <input type="submit" value="Add"></p>
-</form> -->
+<form method="POST" action="/addpost/?sid={{sid}}">
+  <p>Title: <input type="text" name="title"></p>
+  <p>Description: <input type="text" name="body">
+  <br>
+  <input type="submit" value="Submit">
+  </p>
+</form>
+{% else %}
+<p> login first! </p>
+<p><a href="/">Login</a></p>
+{% endif %}
+{% endblock %}
 
 </body>
 
