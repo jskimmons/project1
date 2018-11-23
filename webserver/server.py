@@ -17,7 +17,7 @@ Read about it online.
 
 import os
 from sqlalchemy import *
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, exc
 from flask import Flask, request, render_template, g, redirect, Response, session, escape, flash
 
 tmpl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
@@ -169,7 +169,12 @@ def adduser():
   session['username'] = username
   
   getuid_cmd = 'select uid from users where user_name = \'{}\';'.format(session['username'])
-  cursor = g.conn.execute(text(getuid_cmd))
+  
+  try:
+    cursor = g.conn.execute(text(getuid_cmd))
+  except exc.IntegrityError as e:
+    print("data already exists")
+    redirect('/')
   
   session['uid'] = cursor.first()['uid']
 
@@ -254,7 +259,12 @@ def followSubpage():
   uid = session['uid']
 
   insert_follow_cmd = 'INSERT INTO follows(sid, uid) VALUES (:sid1, :uid1)';
-  g.conn.execute(text(insert_follow_cmd), sid1 = sid, uid1 = uid);
+
+  try:
+    g.conn.execute(text(insert_follow_cmd), sid1 = sid, uid1 = uid);
+  except exc.IntegrityError as e:
+    print "already followed"
+
   # return redirect('/subpage/?sid={}'.format(sid))
   return redirect(request.referrer)
 
@@ -294,7 +304,11 @@ def votePost():
   uid = session['uid']
 
   insert_vote_cmd = 'INSERT INTO vote(uid_vote, pid) VALUES (:uid1, :pid1)';
-  g.conn.execute(text(insert_vote_cmd), uid1 = uid, pid1 = pid);
+
+  try:
+    g.conn.execute(text(insert_vote_cmd), uid1 = uid, pid1 = pid);
+  except exc.IntegrityError as e:
+    print "already voted"
 
   return redirect(request.referrer)
 
