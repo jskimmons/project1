@@ -148,12 +148,6 @@ def login():
 def newuser():
   return render_template("newuser.html")
 
-# render a page to create a new subpage
-@app.route('/newsubpage', methods=['GET'])
-def newsubpage():
-  return render_template("newsubpage.html")
-
-
 # logic to add new user to a database
 @app.route('/adduser', methods=['POST'])
 def adduser():
@@ -195,7 +189,7 @@ def subpage():
 
   # gets all posts ordered by number of votes
   cmd = '''
-          select p.title, p.body, u.uid, u.user_name, count(v.*) as vote_count
+          select p.title, p.body, u.uid, u.user_name, p.pid, count(v.*) as vote_count
           from post p left outer join vote v on p.pid = v.pid, users u
           where p.uid = u.uid and p.sid = {}
           group by p.pid, p.title, p.body, u.uid, u.user_name
@@ -206,7 +200,7 @@ def subpage():
 
   posts = []
   for result in cursor:
-    posts.append((result['title'], result['body'], result['user_name'], result['uid'], result['vote_count']))
+    posts.append((result['title'], result['body'], result['user_name'], result['uid'], result['pid'], result['vote_count']))
 
   cmd = 'SELECT sp_name, description FROM subpages WHERE sid = {};'.format(sid);
   cursor = g.conn.execute(text(cmd));
@@ -231,7 +225,7 @@ def user():
   cmd = 'SELECT p.title, p.body, s.sp_name, s.sid FROM post p, subpages s WHERE p.sid = s.sid and p.uid = {}'.format(uid);
 
   cmd = '''
-          select p.title, p.body, s.sp_name, s.sid, count(v.*) as vote_count
+          select p.title, p.body, s.sp_name, s.sid, p.pid, count(v.*) as vote_count
           from post p left outer join vote v on p.pid = v.pid, subpages s
           where p.sid = s.sid and p.uid = {}
           group by p.pid, p.title, p.body, s.sid, s.sp_name
@@ -242,7 +236,7 @@ def user():
 
   posts = []
   for result in cursor:
-    posts.append((result['title'], result['body'], result['sp_name'], result['sid'], result['vote_count']))
+    posts.append((result['title'], result['body'], result['sp_name'], result['sid'], result['pid'], result['vote_count']))
 
   cmd = 'SELECT * FROM users WHERE uid = {}'.format(uid);
   cursor = g.conn.execute(text(cmd));
@@ -261,7 +255,8 @@ def followSubpage():
 
   insert_follow_cmd = 'INSERT INTO follows(sid, uid) VALUES (:sid1, :uid1)';
   g.conn.execute(text(insert_follow_cmd), sid1 = sid, uid1 = uid);
-  return redirect('/subpage/?sid={}'.format(sid))
+  # return redirect('/subpage/?sid={}'.format(sid))
+  return redirect(request.referrer)
 
 # logic to add new user to a database
 @app.route('/addpost/', methods=['POST'])
@@ -274,7 +269,12 @@ def addpost():
   cmd = 'INSERT INTO post(uid, sid, title, body, date_posted) VALUES ({}, {}, \'{}\', \'{}\', now())'.format(uid, sid, title, body);
   g.conn.execute(text(cmd));
 
-  return redirect('/subpage/?sid={}'.format(sid))
+  return redirect(request.referrer)
+
+# render a page to create a new subpage
+@app.route('/newsubpage', methods=['GET'])
+def newsubpage():
+  return render_template("newsubpage.html")
 
 # logic to add new user to a database
 @app.route('/addsubpage', methods=['POST'])
@@ -285,7 +285,18 @@ def addsubpage():
   cmd = 'INSERT INTO subpages(sp_name, description) VALUES (\'{}\', \'{}\')'.format(sp_name, description);
   g.conn.execute(text(cmd));
 
-  return redirect('/')
+  return redirect(request.referrer)
+
+# allow the current user to vote on a post
+@app.route('/votepost/', methods=['POST'])
+def votePost():
+  pid = request.args.get('pid')
+  uid = session['uid']
+
+  insert_vote_cmd = 'INSERT INTO vote(uid_vote, pid) VALUES (:uid1, :pid1)';
+  g.conn.execute(text(insert_vote_cmd), uid1 = uid, pid1 = pid);
+
+  return redirect(request.referrer)
 
 if __name__ == "__main__":
   import click
