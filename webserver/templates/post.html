@@ -1,23 +1,44 @@
+{% block body %}
+{% if session['logged_in'] %}
 <html>
 <head>
 </head>
 <body>
-{% block body %}
-{% if session['logged_in'] %}
-	<div id="post_section">
-		<h1>{{post[4]}}</h1>
-		<p>{{post[5]}}</p>
-	</div>
-	<div id="comment_section">
-		<h2>Comments</h2>
-		{% for cid, pid, uid_post, date_posted, body in comments %}
+<div id="post_section">
+	<h1>{{post[4]}}</h1>
+	<p>{{post[5]}}</p>
+</div>
+<div id="comment_section">
+	<h2>Comments</h2>
+	{% for cid, pid, uid_post, date_posted, body in comments %}
+		{% if uid_post == curr_uid %}
+		<div class="comment">
+			<p>{{users[uid_post]}}</p>
+			<p>{{date_posted}}</p>
+			<p>{{body}}</p>
+			<form method="POST" action="/delcomment/?cid={{cid}}">
+				<input type="submit" value="DELETE">
+			</form>
+		</div>
+		{% else %}
 		<div class="comment">
 			<p>{{users[uid_post]}}</p>
 			<p>{{date_posted}}</p>
 			<p>{{body}}</p>
 		</div>
-		{% endfor %}
+		{% endif %}
+	{% endfor %}
+	<div id="post_comment">
+		<form method="POST" action="/addcomment/?pid={{post[0]}}&uid_post={{curr_uid}}">
+			<div>
+				<textarea rows="4" cols="50" name="comment" placeholder="Add a comment!"></textarea>
+			</div>
+			<div>
+				<input type="submit" value="POST">
+			</div>
+		</form>
 	</div>
+</div>
 {% else %}
 <p> login first! </p>
 <p><a href="/">Login</a></p>

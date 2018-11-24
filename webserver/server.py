@@ -85,6 +85,14 @@ def teardown_request(exception):
   except Exception as e:
     pass
 
+def get_uid(username):
+  cmd = "SELECT uid FROM users WHERE user_name = '{}'".format(username)
+  cursor = g.conn.execute(text(cmd))
+  user_id = 0
+  for result in cursor:
+    user_id = result["uid"]
+  return user_id
+
 @app.route('/')
 def index():
 
@@ -93,22 +101,26 @@ def index():
     return render_template('login.html')
 
   curr_user = session['username']
-  cmd = "SELECT uid FROM users WHERE user_name = '{}'".format(curr_user)
-  cursor = g.conn.execute(text(cmd))
-  user_id = 0
-  for result in cursor:
-  	user_id = result["uid"]
+  user_id = get_uid(curr_user)
 
   cmd = "SELECT sid, sp_name, description "\
   		"FROM subpages NATURAL JOIN follows "\
-  		"WHERE uid = {}".format(user_id)
+  		"WHERE uid = {};".format(user_id)
   cursor = g.conn.execute(text(cmd))
   subpage_tups = []
   for result in cursor:
   	sub_tup = (result["sid"], result["sp_name"], result["description"])
   	subpage_tups.append(sub_tup)
+
+  cmd = "SELECT sid, sp_name, description FROM subpages WHERE sid NOT IN ("\
+        "SELECT sid FROM subpages NATURAL JOIN follows WHERE uid = {});".format(user_id)
+  cursor = g.conn.execute(text(cmd))
+  rest = []
+  for result in cursor:
+    rest_tup = (result["sid"], result["sp_name"], result["description"])
+    rest.append(rest_tup)
   	
-  context = dict(user = session['username'], subpages = subpage_tups)
+  context = dict(user = session['username'], subpages = subpage_tups, rest = rest)
 
   # render index.html for a given user
   return render_template("index.html", **context)
@@ -233,6 +245,9 @@ def subpage():
 @app.route('/post/', methods=['GET'])
 def post():
 
+  curr_user = session['username']
+  user_id = get_uid(curr_user)
+
   pid = request.args.get('pid')
 
   cmd = "SELECT * FROM post WHERE pid = {}".format(pid)
@@ -259,9 +274,32 @@ def post():
     if user_name not in users:
       users[uid] = user_name
 
-  context = dict(post = post, comments = comments, users = users)
+  context = dict(curr_uid = user_id, post = post, comments = comments, users = users)
 
   return render_template("post.html", **context)
+
+@app.route('/addcomment/', methods=['POST'])
+def addcomment():
+
+  pid = request.args.get("pid")
+  uid_post = request.args.get("uid_post")
+  comment = request.form["comment"]
+
+  cmd = 'INSERT INTO comments(cid, pid, uid_post, date_posted, body) VALUES (nextval(\'comment_sequence\'), {}, {}, now(), \'{}\')'.format(pid, uid_post, comment)
+  g.conn.execute(text(cmd))
+
+  return redirect(request.referrer)
+
+@app.route('/delcomment/', methods=['POST'])
+def delcomment():
+
+  cid = request.args.get("cid")
+
+  cmd = 'DELETE FROM comments WHERE cid = {}'.format(cid)
+  g.conn.execute(text(cmd))
+
+  return redirect(request.referrer)
+
 
 # TODO add user view with list of all posts in a subpage
 @app.route('/user/', methods=['GET'])
