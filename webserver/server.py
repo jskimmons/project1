@@ -347,7 +347,6 @@ def followSubpage():
   except exc.IntegrityError as e:
     print "already followed"
 
-  # return redirect('/subpage/?sid={}'.format(sid))
   return redirect(request.referrer)
 
 # logic to add new user to a database
@@ -377,7 +376,21 @@ def addsubpage():
   cmd = 'INSERT INTO subpages(sp_name, description) VALUES (\'{}\', \'{}\')'.format(sp_name, description);
   g.conn.execute(text(cmd));
 
-  return redirect(request.referrer)
+  get_new_sid = 'select sid from subpages where sp_name=\'{}\''.format(sp_name);
+  cursor = g.conn.execute(text(get_new_sid));
+  result = cursor.first()
+  sid = result['sid']
+
+  # TODO
+  try:
+    cursor = g.conn.execute(text(get_new_sid));
+  except exc.IntegrityError as e:
+    print "already existing name"
+    return redirect(request.referrer)
+  
+  result = cursor.first()
+  sid = result['sid']
+  return redirect('/subpage/?sid={}'.format(sid))
 
 # allow the current user to vote on a post
 @app.route('/votepost/', methods=['POST'])
