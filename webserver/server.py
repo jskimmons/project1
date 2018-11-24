@@ -92,13 +92,22 @@ def index():
   if not session.get('logged_in'):
     return render_template('login.html')
 
-  # example of context
-  cmd = "SELECT * FROM subpages"
+  curr_user = session['username']
+  cmd = "SELECT uid FROM users WHERE user_name = '{}'".format(curr_user)
+  cursor = g.conn.execute(text(cmd))
+  user_id = 0
+  for result in cursor:
+  	user_id = result["uid"]
+
+  cmd = "SELECT sid, sp_name, description "\
+  		"FROM subpages NATURAL JOIN follows "\
+  		"WHERE uid = {}".format(user_id)
   cursor = g.conn.execute(text(cmd))
   subpage_tups = []
   for result in cursor:
   	sub_tup = (result["sid"], result["sp_name"], result["description"])
   	subpage_tups.append(sub_tup)
+  	
   context = dict(user = session['username'], subpages = subpage_tups)
 
   # render index.html for a given user
@@ -191,6 +200,7 @@ def subpage():
   sid = request.args.get('sid')
 
   # query for all posts in this sid
+  
   # cmd = 'SELECT p.title, p.body, u.user_name, u.uid FROM post p, users u WHERE p.uid = u.uid and p.sid = {};'.format(sid);
 
   # gets all posts ordered by number of votes
@@ -219,6 +229,39 @@ def subpage():
   context = dict(posts=posts, subpage_title=subpage_title, subpage_desc=subpage_desc, sid=sid)
 
   return render_template("subpage.html", **context)
+
+@app.route('/post/', methods=['GET'])
+def post():
+
+  pid = request.args.get('pid')
+
+  cmd = "SELECT * FROM post WHERE pid = {}".format(pid)
+  cursor = g.conn.execute(text(cmd))
+  post = 0
+  for result in cursor:
+    post = (result['pid'], result['sid'], result['uid'], result['date_posted'], result['title'], result['body'])
+
+  cmd = "SELECT * FROM comments WHERE pid = {}".format(pid)
+  cursor = g.conn.execute(text(cmd))
+  comments = []
+  for result in cursor:
+    comments.append((result['cid'], result['pid'], result['uid_post'], result['date_posted'], result['body']))
+
+  users = {}
+  for i in range(len(comments)):
+    comment = comments[i]
+    uid = comment[2]
+    cmd = "SELECT user_name FROM users WHERE uid = {}".format(uid)
+    cursor = g.conn.execute(text(cmd))
+    user_name = 0
+    for result in cursor:
+      user_name = result['user_name']
+    if user_name not in users:
+      users[uid] = user_name
+
+  context = dict(post = post, comments = comments, users = users)
+
+  return render_template("post.html", **context)
 
 # TODO add user view with list of all posts in a subpage
 @app.route('/user/', methods=['GET'])

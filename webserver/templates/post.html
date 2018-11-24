@@ -1,0 +1,28 @@
+<html>
+<head>
+</head>
+<body>
+{% block body %}
+{% if session['logged_in'] %}
+	<div id="post_section">
+		<h1>{{post[4]}}</h1>
+		<p>{{post[5]}}</p>
+	</div>
+	<div id="comment_section">
+		<h2>Comments</h2>
+		{% for cid, pid, uid_post, date_posted, body in comments %}
+		<div class="comment">
+			<p>{{users[uid_post]}}</p>
+			<p>{{date_posted}}</p>
+			<p>{{body}}</p>
+		</div>
+		{% endfor %}
+	</div>
+{% else %}
+<p> login first! </p>
+<p><a href="/">Login</a></p>
+{% endif %}
+{% endblock %}
+
+</body>
+</html>
