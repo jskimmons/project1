@@ -1,5 +1,4 @@
 {% block body %}
-{% if session['logged_in'] %}
 <form action="/adduser" method="POST">
   <input type="username" name="username" placeholder="Username">
   <input type="password" name="password" placeholder="Password">
@@ -8,8 +7,4 @@
   <input type="email" name="email" placeholder="Email">
   <input type="submit" value="Sign Up">
 </form>
-{% else %}
-<p> login first! </p>
-<p><a href="/">Login</a></p>
-{% endif %}
 {% endblock %}
