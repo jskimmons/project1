@@ -21,11 +21,15 @@
   </form>
 
   <div>
-    {% for title, body, sp_name in posts %}
+    {% for title, body, sp_name, sid, pid, vote_count in posts %}
       <div>
-        <p>{{sp_name}}</p>
+        <p><a href="/subpage/?sid={{sid}}">{{sp_name}}</a></p>
         <h3>{{title}}</h3>
         <p>{{body}}</p>
+        <p>votes: {{vote_count}}</p>
+        <form action="/votepost/?pid={{pid}}" method="post">
+          <button type="submit">Vote</button>
+        </form>
       </div>
     {% endfor %}
   </div>

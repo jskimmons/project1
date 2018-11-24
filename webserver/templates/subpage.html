@@ -30,10 +30,14 @@
   </form>
 
   <div>
-    {% for title, body, user_name, pid in posts %}
+    {% for title, body, user_name, uid, pid, vote_count in posts %}
       <div>
         <h3><a href="/post/?pid={{pid}}">{{title}}<a></h3>
-        <p>Posted by: {{user_name}}</p>
+        <p>Posted by: <a href="/user/?uid={{uid}}">{{user_name}}</p>
+        <p>votes: {{vote_count}}</p>
+        <form action="/votepost/?pid={{pid}}" method="post">
+          <button type="submit">Vote</button>
+        </form>
       </div>
     {% endfor %}
   </div>

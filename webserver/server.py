@@ -14,10 +14,11 @@ Go to http://localhost:8111 in your browser
 A debugger such as "pdb" may be helpful for debugging.
 Read about it online.
 """
+# Comment
 
 import os
 from sqlalchemy import *
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, exc
 from flask import Flask, request, render_template, g, redirect, Response, session, escape, flash
 
 tmpl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
@@ -157,12 +158,6 @@ def login():
 def newuser():
   return render_template("newuser.html")
 
-# render a page to create a new subpage
-@app.route('/newsubpage', methods=['GET'])
-def newsubpage():
-  return render_template("newsubpage.html")
-
-
 # logic to add new user to a database
 @app.route('/adduser', methods=['POST'])
 def adduser():
@@ -184,7 +179,12 @@ def adduser():
   session['username'] = username
   
   getuid_cmd = 'select uid from users where user_name = \'{}\';'.format(session['username'])
-  cursor = g.conn.execute(text(getuid_cmd))
+  
+  try:
+    cursor = g.conn.execute(text(getuid_cmd))
+  except exc.IntegrityError as e:
+    print("data already exists")
+    redirect('/')
   
   session['uid'] = cursor.first()['uid']
 
@@ -200,12 +200,23 @@ def subpage():
   sid = request.args.get('sid')
 
   # query for all posts in this sid
-  cmd = 'SELECT p.title, p.body, u.user_name, p.pid FROM post p, users u WHERE p.uid = u.uid and p.sid = {};'.format(sid);
+  
+  # cmd = 'SELECT p.title, p.body, u.user_name, u.uid FROM post p, users u WHERE p.uid = u.uid and p.sid = {};'.format(sid);
+
+  # gets all posts ordered by number of votes
+  cmd = '''
+          select p.title, p.body, u.uid, u.user_name, p.pid, count(v.*) as vote_count
+          from post p left outer join vote v on p.pid = v.pid, users u
+          where p.uid = u.uid and p.sid = {}
+          group by p.pid, p.title, p.body, u.uid, u.user_name
+          order by count(v.*) desc;
+        '''.format(sid)
+
   cursor = g.conn.execute(text(cmd));
 
   posts = []
   for result in cursor:
-    posts.append((result['title'], result['body'], result['user_name'], result['pid']))
+    posts.append((result['title'], result['body'], result['user_name'], result['uid'], result['pid'], result['vote_count']))
 
   cmd = 'SELECT sp_name, description FROM subpages WHERE sid = {};'.format(sid);
   cursor = g.conn.execute(text(cmd));
@@ -260,15 +271,24 @@ def user():
   uid = request.args.get('uid')
 
   # query for all posts in this sid
-  cmd = 'SELECT p.title, p.body, s.sp_name FROM post p, subpages s WHERE p.sid = s.sid and p.uid = {}'.format(uid);
-  cursor = g.conn.execute(text(cmd), uid1 = uid);
+  cmd = 'SELECT p.title, p.body, s.sp_name, s.sid FROM post p, subpages s WHERE p.sid = s.sid and p.uid = {}'.format(uid);
+
+  cmd = '''
+          select p.title, p.body, s.sp_name, s.sid, p.pid, count(v.*) as vote_count
+          from post p left outer join vote v on p.pid = v.pid, subpages s
+          where p.sid = s.sid and p.uid = {}
+          group by p.pid, p.title, p.body, s.sid, s.sp_name
+          order by count(v.*) desc;
+        '''.format(uid)
+  
+  cursor = g.conn.execute(text(cmd));
 
   posts = []
   for result in cursor:
-    posts.append((result['title'], result['body'], result['sp_name']))
+    posts.append((result['title'], result['body'], result['sp_name'], result['sid'], result['pid'], result['vote_count']))
 
   cmd = 'SELECT * FROM users WHERE uid = {}'.format(uid);
-  cursor = g.conn.execute(text(cmd), uid1 = uid);
+  cursor = g.conn.execute(text(cmd));
 
   results = cursor.first()
   user_name = results['user_name']
@@ -283,8 +303,14 @@ def followSubpage():
   uid = session['uid']
 
   insert_follow_cmd = 'INSERT INTO follows(sid, uid) VALUES (:sid1, :uid1)';
-  g.conn.execute(text(insert_follow_cmd), sid1 = sid, uid1 = uid);
-  return redirect('/subpage/?sid={}'.format(sid))
+
+  try:
+    g.conn.execute(text(insert_follow_cmd), sid1 = sid, uid1 = uid);
+  except exc.IntegrityError as e:
+    print "already followed"
+
+  # return redirect('/subpage/?sid={}'.format(sid))
+  return redirect(request.referrer)
 
 # logic to add new user to a database
 @app.route('/addpost/', methods=['POST'])
@@ -297,7 +323,12 @@ def addpost():
   cmd = 'INSERT INTO post(uid, sid, title, body, date_posted) VALUES ({}, {}, \'{}\', \'{}\', now())'.format(uid, sid, title, body);
   g.conn.execute(text(cmd));
 
-  return redirect('/subpage/?sid={}'.format(sid))
+  return redirect(request.referrer)
+
+# render a page to create a new subpage
+@app.route('/newsubpage', methods=['GET'])
+def newsubpage():
+  return render_template("newsubpage.html")
 
 # logic to add new user to a database
 @app.route('/addsubpage', methods=['POST'])
@@ -308,7 +339,22 @@ def addsubpage():
   cmd = 'INSERT INTO subpages(sp_name, description) VALUES (\'{}\', \'{}\')'.format(sp_name, description);
   g.conn.execute(text(cmd));
 
-  return redirect('/')
+  return redirect(request.referrer)
+
+# allow the current user to vote on a post
+@app.route('/votepost/', methods=['POST'])
+def votePost():
+  pid = request.args.get('pid')
+  uid = session['uid']
+
+  insert_vote_cmd = 'INSERT INTO vote(uid_vote, pid) VALUES (:uid1, :pid1)';
+
+  try:
+    g.conn.execute(text(insert_vote_cmd), uid1 = uid, pid1 = pid);
+  except exc.IntegrityError as e:
+    print "already voted"
+
+  return redirect(request.referrer)
 
 if __name__ == "__main__":
   import click
