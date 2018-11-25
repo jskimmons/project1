@@ -12,6 +12,20 @@
 		</div>
 		{% endfor %}
 	</div>
+	<div id="new_thread">
+		<h3>Start a New Thread!<h3>
+		<form method="POST" action="/create_thread/?uid_sender={{user_id}}">
+			<div>
+				<p>To: <input type=text name="recipient"></p>
+				<textarea rows="4" cols="50" name="new_msg" placeholder="Message"></textarea>
+			</div>
+			<div><input type="submit" value="NEW THREAD"></div>
+		</form>
+	</div>
+	{% if exists_issue == 1 %}
+	<p>The user you specified does not exist. Please enter valid user.</p>
+	{% endif %}
+	<a href="/">Back to Home</a>
 {% else %}
 <p> login first! </p>
 <p><a href="/">Login</a></p>

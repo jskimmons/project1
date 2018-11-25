@@ -301,9 +301,13 @@ def delcomment():
   return redirect(request.referrer)
 
 @app.route('/dm_threads/', methods=['GET'])
-def dm_threads():
+def dm_threads(local_var=0, local_uid=0, exists_issue=0):
 
-  uid = request.args.get("uid")
+  uid = 0
+  if not local_var:
+    uid = request.args.get("uid")
+  else:
+    uid = local_uid
 
   cmd = """WITH uid_did(uid, did) AS (
         SELECT uid_receiver AS uid, did FROM dm_sent NATURAL JOIN dm_recv 
@@ -324,7 +328,7 @@ def dm_threads():
     row_tup = (user_id, did, username)
     threads.append(row_tup)
 
-  context = dict(user=session['username'], threads=threads)
+  context = dict(user=session['username'], user_id=get_uid(session['username']), threads=threads, exists_issue=exists_issue)
 
   return render_template("threads.html", **context)
 
@@ -366,6 +370,7 @@ def send_dm():
   uid_sender = request.args.get("uid_sender")
   uid_receiver = request.args.get("uid_receiver")
   body = request.form["message"]
+  body = body.replace("\'", "\'\'")
 
   cmd = "INSERT INTO dm_sent(uid_sender, body, time_sent) VALUES ({}, '{}', now())".format(uid_sender, body)
   g.conn.execute(text(cmd))
@@ -380,6 +385,41 @@ def send_dm():
   g.conn.execute(text(cmd))
 
   return redirect(request.referrer)
+
+
+@app.route('/create_thread/', methods=['POST'])
+def create_thread():
+
+  uid_sender = request.args.get("uid_sender")
+  recipient = request.form["recipient"]
+  message = request.form["new_msg"]
+  message = message.replace("\'", "\'\'")
+
+  cmd = "SELECT uid, user_name FROM users WHERE user_name = '{}'".format(recipient)
+  cursor = g.conn.execute(text(cmd))
+  user = cursor.fetchall()
+  exists = len(user)
+  if exists:
+    uid_receiver = user[0]["uid"]
+
+    cmd = "INSERT INTO dm_sent(uid_sender, body, time_sent) VALUES ({}, '{}', now())".format(uid_sender, message)
+    g.conn.execute(text(cmd))
+
+    did = 0
+    cmd = "SELECT did FROM dm_sent WHERE uid_sender = {} ORDER BY did DESC LIMIT 1".format(uid_sender)
+    cursor = g.conn.execute(text(cmd))
+    for result in cursor:
+      did = result['did']
+
+    cmd = "INSERT INTO dm_recv(uid_receiver, uid_sender, did, time_received) VALUES ({}, {}, {}, now())".format(uid_receiver, uid_sender, did)
+    g.conn.execute(text(cmd))
+
+    return redirect(request.referrer)
+
+  else:
+    
+    return dm_threads(local_var=1, local_uid=uid_sender, exists_issue=1)
+
 
 
 # TODO add user view with list of all posts in a subpage
