@@ -1,0 +1,21 @@
+{% block body %}
+{% if session['logged_in'] %}
+<html>
+<head>
+</head>
+<body>
+	<h1>Messaging Threads</h1>
+	<div id="threads_container">
+		{% for thread in threads %}
+		<div class="thread">
+			<a href="/indi_thread/?uid={{thread[0]}}">{{thread[2]}}</a>
+		</div>
+		{% endfor %}
+	</div>
+{% else %}
+<p> login first! </p>
+<p><a href="/">Login</a></p>
+{% endif %}
+{% endblock %}
+</body>
+</html>

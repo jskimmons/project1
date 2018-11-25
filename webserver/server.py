@@ -120,7 +120,7 @@ def index():
     rest_tup = (result["sid"], result["sp_name"], result["description"])
     rest.append(rest_tup)
   	
-  context = dict(user = session['username'], subpages = subpage_tups, rest = rest)
+  context = dict(user = session['username'], user_id = user_id, subpages = subpage_tups, rest = rest)
 
   # render index.html for a given user
   return render_template("index.html", **context)
@@ -274,7 +274,7 @@ def post():
     if user_name not in users:
       users[uid] = user_name
 
-  context = dict(curr_uid = user_id, post = post, comments = comments, users = users)
+  context = dict(user = session['username'], curr_uid = user_id, post = post, comments = comments, users = users)
 
   return render_template("post.html", **context)
 
@@ -296,6 +296,87 @@ def delcomment():
   cid = request.args.get("cid")
 
   cmd = 'DELETE FROM comments WHERE cid = {}'.format(cid)
+  g.conn.execute(text(cmd))
+
+  return redirect(request.referrer)
+
+@app.route('/dm_threads/', methods=['GET'])
+def dm_threads():
+
+  uid = request.args.get("uid")
+
+  cmd = """WITH uid_did(uid, did) AS (
+        SELECT uid_receiver AS uid, did FROM dm_sent NATURAL JOIN dm_recv 
+        WHERE uid_sender = :uid1
+        UNION
+        SELECT uid_sender AS uid, did FROM dm_sent NATURAL JOIN dm_recv
+        WHERE uid_receiver = :uid2
+        ORDER BY did),
+        usr_extract(uid, did, user_name, dob, email, password) AS (
+        SELECT DISTINCT ON (S.uid) * FROM uid_did S NATURAL JOIN users)
+        SELECT * FROM usr_extract ORDER BY did DESC;"""
+  cursor = g.conn.execute(text(cmd), uid1 = uid, uid2 = uid)
+  threads = []
+  for result in cursor:
+    user_id = result['uid']
+    did = result['did']
+    username = result['user_name']
+    row_tup = (user_id, did, username)
+    threads.append(row_tup)
+
+  context = dict(user=session['username'], threads=threads)
+
+  return render_template("threads.html", **context)
+
+@app.route('/indi_thread/', methods=['GET'])
+def indi_thread():
+
+  uid_other = request.args.get("uid")
+  uid_me = get_uid(session['username'])
+
+  my_name = session['username']
+  other_name = 0
+  cmd = "SELECT user_name FROM users WHERE uid = {}".format(uid_other)
+  cursor = g.conn.execute(text(cmd))
+  for result in cursor:
+    other_name = result['user_name']
+
+  cmd = """SELECT * FROM dm_sent NATURAL JOIN dm_recv
+  WHERE uid_sender = :uid_me1 AND uid_receiver = :uid_other1
+  UNION
+  SELECT * FROM dm_sent NATURAL JOIN dm_recv
+  WHERE uid_sender = :uid_other2 AND uid_receiver = :uid_me2
+  ORDER BY did LIMIT 12;
+  """
+  cursor = g.conn.execute(text(cmd), uid_me1=uid_me, uid_other1=uid_other, uid_other2=uid_other, uid_me2=uid_me)
+  messages = []
+  for result in cursor:
+    if result['uid_sender'] == uid_me:
+      messages.append((my_name, result['body']))
+    else:
+      messages.append((other_name, result['body']))
+
+  context = dict(user=session['username'], messages=messages, other=other_name, uid_other=uid_other, uid_me=uid_me)
+
+  return render_template("indi_thread.html", **context)
+
+@app.route('/send_dm/', methods=['POST'])
+def send_dm():
+
+  uid_sender = request.args.get("uid_sender")
+  uid_receiver = request.args.get("uid_receiver")
+  body = request.form["message"]
+
+  cmd = "INSERT INTO dm_sent(uid_sender, body, time_sent) VALUES ({}, '{}', now())".format(uid_sender, body)
+  g.conn.execute(text(cmd))
+
+  did = 0
+  cmd = "SELECT did FROM dm_sent WHERE uid_sender = {} ORDER BY did DESC LIMIT 1".format(uid_sender)
+  cursor = g.conn.execute(text(cmd))
+  for result in cursor:
+    did = result['did']
+
+  cmd = "INSERT INTO dm_recv(uid_receiver, uid_sender, did, time_received) VALUES ({}, {}, {}, now())".format(uid_receiver, uid_sender, did)
   g.conn.execute(text(cmd))
 
   return redirect(request.referrer)

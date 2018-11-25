@@ -1,0 +1,30 @@
+{% block body %}
+{% if session['logged_in'] %}
+<html>
+<head>
+</head>
+<body>
+	<h1>You Are Messaging {{other}}</h1>
+	<div id="dm_messages">
+		{% for name, body in messages %}
+		<div class="dm">
+			<h4>{{body}}</h4>
+			<p>{{name}}<p>
+		</div>
+		{% endfor %}
+		<form method="POST" action="/send_dm/?uid_sender={{uid_me}}&uid_receiver={{uid_other}}">
+			<div>
+				<textarea rows="4" cols="50" name="message" placeholder="Message"></textarea>
+			</div>
+			<div>
+				<input type="submit" value="MESSAGE">
+			</div>
+		</form>
+	</div>	
+{% else %}
+<p> login first! </p>
+<p><a href="/">Login</a></p>
+{% endif %}
+{% endblock %}
+</body>
+</html>

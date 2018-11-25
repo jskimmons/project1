@@ -25,6 +25,14 @@
     {% endfor %}
   </div>
 
+  <div id="to_dms">
+    <h3>Message Your Friends!!!</h3>
+    <!-- <form method="GET" action="/dm_threads/?uid={{ user_id }}">
+      <input type="submit" value="GO TO DIRECT MESSAGING">
+    </form> -->
+    <a href="/dm_threads/?uid={{user_id}}">GO TO DIRECT MESSAGING</a>
+  </div>
+
   <div id="pages_rest">
     <h3>Here Are Some Other Awesome Pages!!!</h3>
     {% for page in rest %}
