@@ -120,7 +120,7 @@ def index():
     rest_tup = (result["sid"], result["sp_name"], result["description"])
     rest.append(rest_tup)
   	
-  context = dict(user = session['username'], subpages = subpage_tups, rest = rest)
+  context = dict(user = session['username'], user_id = user_id, subpages = subpage_tups, rest = rest)
 
   # render index.html for a given user
   return render_template("index.html", **context)
@@ -274,7 +274,7 @@ def post():
     if user_name not in users:
       users[uid] = user_name
 
-  context = dict(curr_uid = user_id, post = post, comments = comments, users = users)
+  context = dict(user = session['username'], curr_uid = user_id, post = post, comments = comments, users = users)
 
   return render_template("post.html", **context)
 
@@ -299,6 +299,35 @@ def delcomment():
   g.conn.execute(text(cmd))
 
   return redirect(request.referrer)
+
+@app.route('/dm_threads/', methods=['GET'])
+def dm_threads():
+
+  uid = request.args.get("uid")
+
+  cmd = """WITH uid_did(uid, did) AS (
+        SELECT uid_receiver AS uid, did FROM dm_sent NATURAL JOIN dm_recv 
+        WHERE uid_sender = :uid1
+        UNION
+        SELECT uid_sender AS uid, did FROM dm_sent NATURAL JOIN dm_recv
+        WHERE uid_receiver = :uid2
+        ORDER BY did),
+        usr_extract(uid, did, user_name, dob, email, password) AS (
+        SELECT DISTINCT ON (S.uid) * FROM uid_did S NATURAL JOIN users)
+        SELECT * FROM usr_extract ORDER BY did DESC;"""
+  cursor = g.conn.execute(text(cmd), uid1 = uid, uid2 = uid)
+  threads = []
+  for result in cursor:
+    user_id = result['uid']
+    did = result['did']
+    username = result['user_name']
+    row_tup = (user_id, did, username)
+    threads.append(row_tup)
+
+  context = dict(user=session['username'], threads=threads)
+
+  return render_template("threads.html", **context)
+
 
 
 # TODO add user view with list of all posts in a subpage
