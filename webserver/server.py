@@ -328,6 +328,58 @@ def dm_threads():
 
   return render_template("threads.html", **context)
 
+@app.route('/indi_thread/', methods=['GET'])
+def indi_thread():
+
+  uid_other = request.args.get("uid")
+  uid_me = get_uid(session['username'])
+
+  my_name = session['username']
+  other_name = 0
+  cmd = "SELECT user_name FROM users WHERE uid = {}".format(uid_other)
+  cursor = g.conn.execute(text(cmd))
+  for result in cursor:
+    other_name = result['user_name']
+
+  cmd = """SELECT * FROM dm_sent NATURAL JOIN dm_recv
+  WHERE uid_sender = :uid_me1 AND uid_receiver = :uid_other1
+  UNION
+  SELECT * FROM dm_sent NATURAL JOIN dm_recv
+  WHERE uid_sender = :uid_other2 AND uid_receiver = :uid_me2
+  ORDER BY did LIMIT 12;
+  """
+  cursor = g.conn.execute(text(cmd), uid_me1=uid_me, uid_other1=uid_other, uid_other2=uid_other, uid_me2=uid_me)
+  messages = []
+  for result in cursor:
+    if result['uid_sender'] == uid_me:
+      messages.append((my_name, result['body']))
+    else:
+      messages.append((other_name, result['body']))
+
+  context = dict(user=session['username'], messages=messages, other=other_name, uid_other=uid_other, uid_me=uid_me)
+
+  return render_template("indi_thread.html", **context)
+
+@app.route('/send_dm/', methods=['POST'])
+def send_dm():
+
+  uid_sender = request.args.get("uid_sender")
+  uid_receiver = request.args.get("uid_receiver")
+  body = request.form["message"]
+
+  cmd = "INSERT INTO dm_sent(uid_sender, body, time_sent) VALUES ({}, '{}', now())".format(uid_sender, body)
+  g.conn.execute(text(cmd))
+
+  did = 0
+  cmd = "SELECT did FROM dm_sent WHERE uid_sender = {} ORDER BY did DESC LIMIT 1".format(uid_sender)
+  cursor = g.conn.execute(text(cmd))
+  for result in cursor:
+    did = result['did']
+
+  cmd = "INSERT INTO dm_recv(uid_receiver, uid_sender, did, time_received) VALUES ({}, {}, {}, now())".format(uid_receiver, uid_sender, did)
+  g.conn.execute(text(cmd))
+
+  return redirect(request.referrer)
 
 
 # TODO add user view with list of all posts in a subpage
