@@ -210,6 +210,7 @@ def subpage():
 
   # get sid of subpage trying to generate
   sid = request.args.get('sid')
+  uid = session['uid']
 
   # query for all posts in this sid
   
@@ -238,7 +239,20 @@ def subpage():
   subpage_title = results['sp_name']
   subpage_desc = results['description']
 
-  context = dict(posts=posts, subpage_title=subpage_title, subpage_desc=subpage_desc, sid=sid)
+  cmd = 'SELECT sp_name, description FROM subpages WHERE sid = {};'.format(sid);
+  cursor = g.conn.execute(text(cmd));
+
+  results = cursor.first()
+
+  subpage_title = results['sp_name']
+  subpage_desc = results['description']
+
+  cmd = 'Select exists (select * from follows where sid={} and uid={});'.format(sid, uid)
+  cursor = g.conn.execute(text(cmd))
+  results = cursor.first()
+  already_following = results['exists']
+
+  context = dict(posts=posts, subpage_title=subpage_title, subpage_desc=subpage_desc, sid=sid, already_following=already_following)
 
   return render_template("subpage.html", **context)
 
@@ -470,6 +484,16 @@ def followSubpage():
 
   return redirect(request.referrer)
 
+@app.route('/unfollowSubpage/', methods=['POST'])
+def unfollowSubpage():
+  sid = request.args.get('sid')
+  uid = session['uid']
+
+  delete_follow_cmd = 'DELETE FROM follows WHERE sid={} and uid={}'.format(sid, uid);
+  g.conn.execute(text(delete_follow_cmd));
+
+  return redirect(request.referrer)
+
 # logic to add new user to a database
 @app.route('/addpost/', methods=['POST'])
 def addpost():
@@ -482,6 +506,11 @@ def addpost():
   g.conn.execute(text(cmd));
 
   return redirect(request.referrer)
+
+@app.route('/delpost/', methods=['GET'])
+def delpost():
+  # TODO
+  pass
 
 # render a page to create a new subpage
 @app.route('/newsubpage', methods=['GET'])
@@ -512,6 +541,11 @@ def addsubpage():
   result = cursor.first()
   sid = result['sid']
   return redirect('/subpage/?sid={}'.format(sid))
+
+@app.route('/delsubpage/', methods=['GET'])
+def delsubpage():
+  pass
+  # TODO
 
 # allow the current user to vote on a post
 @app.route('/votepost/', methods=['POST'])
