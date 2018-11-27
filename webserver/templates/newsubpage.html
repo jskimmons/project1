@@ -1,8 +1,11 @@
 {% block body %}
+<head>
+    <link rel="stylesheet" href="../static/styles/stylesheet.css">
+</head>
 {% if session['logged_in'] %}
 <form action="/addsubpage" method="POST">
   <input type="sp_name" name="sp_name" placeholder="Subpage Name">
-  <input type="description" name="description" placeholder="Description">
+  <textarea rows="4" cols="50" name="description" placeholder="Description"></textarea>
   <input type="submit" value="Create Page!">
 </form>
 {% else %}
