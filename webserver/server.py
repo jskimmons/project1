@@ -229,7 +229,11 @@ def subpage():
 
   posts = []
   for result in cursor:
-    posts.append((result['title'], result['body'], result['user_name'], result['uid'], result['pid'], result['vote_count']))
+    if result['user_name'] == session['username']:
+      my_post = True
+    else:
+      my_post = False
+    posts.append((result['title'], result['body'], result['user_name'], result['uid'], result['pid'], result['vote_count'], my_post))
 
   cmd = 'SELECT sp_name, description FROM subpages WHERE sid = {};'.format(sid);
   cursor = g.conn.execute(text(cmd));
@@ -434,8 +438,6 @@ def create_thread():
     
     return dm_threads(local_var=1, local_uid=uid_sender, exists_issue=1)
 
-
-
 # TODO add user view with list of all posts in a subpage
 @app.route('/user/', methods=['GET'])
 def user():
@@ -507,10 +509,14 @@ def addpost():
 
   return redirect(request.referrer)
 
-@app.route('/delpost/', methods=['GET'])
+@app.route('/delpost/', methods=['POST'])
 def delpost():
-  # TODO
-  pass
+  pid = request.args.get("pid")
+
+  cmd = 'DELETE FROM post WHERE pid = {};'.format(pid)
+  g.conn.execute(text(cmd))
+
+  return redirect(request.referrer)
 
 # render a page to create a new subpage
 @app.route('/newsubpage', methods=['GET'])
@@ -531,7 +537,6 @@ def addsubpage():
   result = cursor.first()
   sid = result['sid']
 
-  # TODO
   try:
     cursor = g.conn.execute(text(get_new_sid));
   except exc.IntegrityError as e:

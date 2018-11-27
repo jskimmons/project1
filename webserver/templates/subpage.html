@@ -35,8 +35,17 @@
     <button type="submit">Logout</button>
   </form>
 
+  <form method="POST" action="/addpost/?sid={{sid}}">
+    <h3> New post </h3>
+    <p>Title: <input type="text" name="title"></p>
+    <textarea rows="4" cols="50" name="message" placeholder="Body"></textarea>
+    <br>
+    <input type="submit" value="Submit">
+    </p>
+  </form>
+
   <div>
-    {% for title, body, user_name, uid, pid, vote_count in posts %}
+    {% for title, body, user_name, uid, pid, vote_count, my_post in posts %}
       <div>
         <h3><a href="/post/?pid={{pid}}">{{title}}</a></h3>
         <p>Posted by: <a href="/user/?uid={{uid}}">{{user_name}}</a></p>
@@ -44,19 +53,16 @@
         <form action="/votepost/?pid={{pid}}" method="post">
           <button type="submit">Vote</button>
         </form>
+        {% if my_post %}
+        <form action="/delpost/?pid={{pid}}" method="POST">
+          <button type="submit">Delete Post</button>
+        </form>
+        {% endif %}
       </div>
     {% endfor %}
   </div>
 
 <p><a href="/newuser">Sign up!</a></p>
-
-<form method="POST" action="/addpost/?sid={{sid}}">
-  <p>Title: <input type="text" name="title"></p>
-  <p>Description: <input type="text" name="body">
-  <br>
-  <input type="submit" value="Submit">
-  </p>
-</form>
 {% else %}
 <p> login first! </p>
 <p><a href="/">Login</a></p>
