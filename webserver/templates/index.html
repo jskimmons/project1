@@ -1,22 +1,14 @@
 <html>
-  <style>
-    body{ 
-      font-size: 15pt;
-      font-family: arial;
-    }
-  </style>
-
-
+<head>
+    <link rel="stylesheet" href="../static/styles/stylesheet.css">
+</head>
 <body>
-  <h1>Welcome {{user}}!</h1>
-
-<!--   <div>
-    {% for n in data %}
-    <div>{{n}}</div>
-    {% endfor %}
-  </div> -->
+  <h1>Welcome user {{user}}!</h1>
+  <form action="/logout" method="get">
+    <button type="submit">Logout</button>
+  </form>
   <div id="pages_following">
-    <h3>Here Are Your Subpages!!!</h3>
+    <h3>Subpages you follow:</h3>
     {% for page in subpages %}
     <div>
       <a href="/subpage/?sid={{ page[0] }}">{{ page[1] }}</a>
@@ -26,15 +18,15 @@
   </div>
 
   <div id="to_dms">
-    <h3>Message Your Friends!!!</h3>
+    <h3>Direct Messaging:</h3>
     <!-- <form method="GET" action="/dm_threads/?uid={{ user_id }}">
       <input type="submit" value="GO TO DIRECT MESSAGING">
     </form> -->
-    <a href="/dm_threads/?uid={{user_id}}">GO TO DIRECT MESSAGING</a>
+    <a href="/dm_threads/?uid={{user_id}}">Go to your inbox</a>
   </div>
 
   <div id="pages_rest">
-    <h3>Here Are Some Other Awesome Pages!!!</h3>
+    <h3>Pages you do not follow:</h3>
     {% for page in rest %}
     <div>
       <a href="/subpage/?sid={{ page[0] }}">{{ page[1] }}</a>
@@ -46,7 +38,6 @@
 
 <p><a href="/newsubpage">Create a Subpage!</a></p>
 <p><a href="/newuser">Sign up!</a></p>
-<p><a href="/logout">Logout</a></p>
 
 <!-- <form method="POST" action="/add">
 <p>Name of new computer scientist: <input type="text" name="name"> <input type="submit" value="Add"></p>

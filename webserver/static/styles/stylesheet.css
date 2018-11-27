@@ -1,0 +1,16 @@
+body {
+    background-color: powderblue;
+    font-size: 15pt;
+    font-family: arial;
+}
+h1 {
+    color: black;
+}
+p {
+    color: black;
+}
+div{
+    border-width:2px;
+    border-style:solid;
+    border-color:black;
+}

@@ -1,12 +1,33 @@
 {% block body %}
-{% if session['logged_in'] %}
-<p>You're logged in already!</p>
-{% else %}
-<form action="/login" method="POST">
-  <input type="username" name="username" placeholder="Username">
-  <input type="password" name="password" placeholder="Password">
-  <input type="submit" value="Log in">
-</form>
-<p><a href="/newuser">Sign up!</a></p>
-{% endif %}
+<html>
+<style>
+  
+  input[type=username], input[type=password] {
+      width: 50%;
+      padding: 4px 4px;
+      margin: 4px 0;
+      display: inline-block;
+      border: 1px solid #ccc;
+  }
+  input[type=submit]{
+      background-color: rgb(106, 204, 49);
+      color: white;
+      padding: 14px 20px;
+      margin: 8px 0;
+      width: 50%;
+  }
+</style>
+<body>
+  {% if session['logged_in'] %}
+  <p>You're logged in already!</p>
+  {% else %}
+  <form action="/login" method="POST">
+    <input type="username" name="username" placeholder="Username">
+    <input type="password" name="password" placeholder="Password">
+    <input type="submit" value="Log in">
+  </form>
+  <p><a href="/newuser">Sign up!</a></p>
+  {% endif %}
+</body>
+</html>
 {% endblock %}

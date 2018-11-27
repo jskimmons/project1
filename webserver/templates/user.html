@@ -1,18 +1,10 @@
 {% block body %}
 {% if session['logged_in'] %}
 <html>
-  <style>
-    body{ 
-      font-size: 15pt;
-      font-family: arial;
-    }
-    div{
-      border-width:2px;
-      border-style:solid;
-      border-color:black;
-    }
-  </style>
 
+<head>
+  <link rel="stylesheet" href="../static/styles/stylesheet.css">
+</head>
 
 <body>
   <h1>Welcome to {{user_name}}'s Page!</h1>
