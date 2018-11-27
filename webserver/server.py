@@ -86,8 +86,10 @@ def teardown_request(exception):
     pass
 
 def get_uid(username):
-  cmd = "SELECT uid FROM users WHERE user_name = '{}'".format(username)
-  cursor = g.conn.execute(text(cmd))
+
+  cmd = "SELECT uid FROM users WHERE user_name=:username";
+  cursor = g.conn.execute(text(cmd), username=username)
+  
   user_id = 0
   for result in cursor:
     user_id = result["uid"]
@@ -105,16 +107,16 @@ def index():
 
   cmd = "SELECT sid, sp_name, description "\
   		"FROM subpages NATURAL JOIN follows "\
-  		"WHERE uid = {};".format(user_id)
-  cursor = g.conn.execute(text(cmd))
+  		"WHERE uid=:uid1";
+  cursor = g.conn.execute(text(cmd), uid1=user_id)
   subpage_tups = []
   for result in cursor:
   	sub_tup = (result["sid"], result["sp_name"], result["description"])
   	subpage_tups.append(sub_tup)
 
   cmd = "SELECT sid, sp_name, description FROM subpages WHERE sid NOT IN ("\
-        "SELECT sid FROM subpages NATURAL JOIN follows WHERE uid = {});".format(user_id)
-  cursor = g.conn.execute(text(cmd))
+        "SELECT sid FROM subpages NATURAL JOIN follows WHERE uid=:uid1)";
+  cursor = g.conn.execute(text(cmd), uid1=user_id)
   rest = []
   for result in cursor:
     rest_tup = (result["sid"], result["sp_name"], result["description"])
@@ -138,14 +140,12 @@ def login():
     # logic to check if a username / password combo is valid
     # plaintext for now
 
-    check_pswd =  'select exists ( \
-                   select * \
-                   from users \
-                   where \
-                   user_name = \'' + request.form['username'] + '\' and \
-                   password = \'' + request.form['password'] + '\');';
-    
-    cursor = g.conn.execute(text(check_pswd))
+    given_username = request.form['username']
+    given_pswd = request.form['password']
+
+    check_pswd =  'select exists (select * from users where user_name=:username and password=:password);';
+    cursor = g.conn.execute(text(check_pswd), username=given_username, password=given_pswd);
+
     result_lst = []
     for result in cursor:
       result_lst.append(result['exists'])
@@ -156,8 +156,8 @@ def login():
       session['logged_in'] = True
       session['username'] = request.form['username']
 
-      getuid_cmd = 'select uid from users where user_name = \'{}\';'.format(session['username'])
-      cursor = g.conn.execute(text(getuid_cmd))
+      getuid_cmd = 'select uid from users where user_name=:username';
+      cursor = g.conn.execute(text(getuid_cmd), username=given_username);
       session['uid'] = cursor.first()['uid']
 
       return redirect('/')
@@ -190,10 +190,10 @@ def adduser():
 
   session['username'] = username
   
-  getuid_cmd = 'select uid from users where user_name = \'{}\';'.format(session['username'])
+  getuid_cmd = 'select uid from users where user_name=:username';
   
   try:
-    cursor = g.conn.execute(text(getuid_cmd))
+    cursor = g.conn.execute(text(getuid_cmd), username=session['username'])
   except exc.IntegrityError as e:
     print("data already exists")
     redirect('/')
@@ -220,35 +220,39 @@ def subpage():
   cmd = '''
           select p.title, p.body, u.uid, u.user_name, p.pid, count(v.*) as vote_count
           from post p left outer join vote v on p.pid = v.pid, users u
-          where p.uid = u.uid and p.sid = {}
+          where p.uid = u.uid and p.sid = :sid
           group by p.pid, p.title, p.body, u.uid, u.user_name
           order by count(v.*) desc;
-        '''.format(sid)
+        ''';
 
-  cursor = g.conn.execute(text(cmd));
+  cursor = g.conn.execute(text(cmd), sid=sid);
 
   posts = []
   for result in cursor:
-    posts.append((result['title'], result['body'], result['user_name'], result['uid'], result['pid'], result['vote_count']))
+    if result['user_name'] == session['username']:
+      my_post = True
+    else:
+      my_post = False
+    posts.append((result['title'], result['body'], result['user_name'], result['uid'], result['pid'], result['vote_count'], my_post))
 
-  cmd = 'SELECT sp_name, description FROM subpages WHERE sid = {};'.format(sid);
-  cursor = g.conn.execute(text(cmd));
-
-  results = cursor.first()
-
-  subpage_title = results['sp_name']
-  subpage_desc = results['description']
-
-  cmd = 'SELECT sp_name, description FROM subpages WHERE sid = {};'.format(sid);
-  cursor = g.conn.execute(text(cmd));
+  cmd = 'SELECT sp_name, description FROM subpages WHERE sid = :sid';
+  cursor = g.conn.execute(text(cmd), sid=sid);
 
   results = cursor.first()
 
   subpage_title = results['sp_name']
   subpage_desc = results['description']
 
-  cmd = 'Select exists (select * from follows where sid={} and uid={});'.format(sid, uid)
-  cursor = g.conn.execute(text(cmd))
+  cmd = 'SELECT sp_name, description FROM subpages WHERE sid = :sid';
+  cursor = g.conn.execute(text(cmd), sid=sid);
+
+  results = cursor.first()
+
+  subpage_title = results['sp_name']
+  subpage_desc = results['description']
+
+  cmd = 'Select exists (select * from follows where sid=:sid and uid=:uid)';
+  cursor = g.conn.execute(text(cmd), sid=sid, uid=uid);
   results = cursor.first()
   already_following = results['exists']
 
@@ -264,14 +268,14 @@ def post():
 
   pid = request.args.get('pid')
 
-  cmd = "SELECT * FROM post WHERE pid = {}".format(pid)
-  cursor = g.conn.execute(text(cmd))
+  cmd = "SELECT * FROM post WHERE pid = :pid";
+  cursor = g.conn.execute(text(cmd), pid=pid);
   post = 0
   for result in cursor:
     post = (result['pid'], result['sid'], result['uid'], result['date_posted'], result['title'], result['body'])
 
-  cmd = "SELECT * FROM comments WHERE pid = {}".format(pid)
-  cursor = g.conn.execute(text(cmd))
+  cmd = "SELECT * FROM comments WHERE pid = :pid";
+  cursor = g.conn.execute(text(cmd), pid=pid);
   comments = []
   for result in cursor:
     comments.append((result['cid'], result['pid'], result['uid_post'], result['date_posted'], result['body']))
@@ -280,8 +284,8 @@ def post():
   for i in range(len(comments)):
     comment = comments[i]
     uid = comment[2]
-    cmd = "SELECT user_name FROM users WHERE uid = {}".format(uid)
-    cursor = g.conn.execute(text(cmd))
+    cmd = "SELECT user_name FROM users WHERE uid = :uid";
+    cursor = g.conn.execute(text(cmd), uid=uid)
     user_name = 0
     for result in cursor:
       user_name = result['user_name']
@@ -298,9 +302,10 @@ def addcomment():
   pid = request.args.get("pid")
   uid_post = request.args.get("uid_post")
   comment = request.form["comment"]
+  # comment = comment.replace("\'", "\'\'")
 
-  cmd = 'INSERT INTO comments(cid, pid, uid_post, date_posted, body) VALUES (nextval(\'comment_sequence\'), {}, {}, now(), \'{}\')'.format(pid, uid_post, comment)
-  g.conn.execute(text(cmd))
+  cmd = 'INSERT INTO comments(cid, pid, uid_post, date_posted, body) VALUES (nextval(\'comment_sequence\'), :pid, :uid_post, now(), :comment)';
+  g.conn.execute(text(cmd), pid=pid, uid_post=uid_post, comment=comment);
 
   return redirect(request.referrer)
 
@@ -309,8 +314,8 @@ def delcomment():
 
   cid = request.args.get("cid")
 
-  cmd = 'DELETE FROM comments WHERE cid = {}'.format(cid)
-  g.conn.execute(text(cmd))
+  cmd = 'DELETE FROM comments WHERE cid = :cid';
+  g.conn.execute(text(cmd), cid=cid);
 
   return redirect(request.referrer)
 
@@ -354,8 +359,8 @@ def indi_thread():
 
   my_name = session['username']
   other_name = 0
-  cmd = "SELECT user_name FROM users WHERE uid = {}".format(uid_other)
-  cursor = g.conn.execute(text(cmd))
+  cmd = "SELECT user_name FROM users WHERE uid = :uid_other";
+  cursor = g.conn.execute(text(cmd), uid_other=uid_other);
   for result in cursor:
     other_name = result['user_name']
 
@@ -384,19 +389,19 @@ def send_dm():
   uid_sender = request.args.get("uid_sender")
   uid_receiver = request.args.get("uid_receiver")
   body = request.form["message"]
-  body = body.replace("\'", "\'\'")
+  # body = body.replace("\'", "\'\'")
 
-  cmd = "INSERT INTO dm_sent(uid_sender, body, time_sent) VALUES ({}, '{}', now())".format(uid_sender, body)
-  g.conn.execute(text(cmd))
+  cmd = "INSERT INTO dm_sent(uid_sender, body, time_sent) VALUES (:uid_sender, :body, now())".format(uid_sender, body)
+  g.conn.execute(text(cmd), uid_sender=uid_sender, body=body);
 
   did = 0
-  cmd = "SELECT did FROM dm_sent WHERE uid_sender = {} ORDER BY did DESC LIMIT 1".format(uid_sender)
-  cursor = g.conn.execute(text(cmd))
+  cmd = "SELECT did FROM dm_sent WHERE uid_sender = :uid_sender ORDER BY did DESC LIMIT 1";
+  cursor = g.conn.execute(text(cmd), uid_sender=uid_sender)
   for result in cursor:
     did = result['did']
 
-  cmd = "INSERT INTO dm_recv(uid_receiver, uid_sender, did, time_received) VALUES ({}, {}, {}, now())".format(uid_receiver, uid_sender, did)
-  g.conn.execute(text(cmd))
+  cmd = "INSERT INTO dm_recv(uid_receiver, uid_sender, did, time_received) VALUES (:uid_receiver, :uid_sender, :did, now())";
+  g.conn.execute(text(cmd), uid_receiver=uid_receiver, uid_sender=uid_sender, did=did);
 
   return redirect(request.referrer)
 
@@ -409,32 +414,30 @@ def create_thread():
   message = request.form["new_msg"]
   message = message.replace("\'", "\'\'")
 
-  cmd = "SELECT uid, user_name FROM users WHERE user_name = '{}'".format(recipient)
-  cursor = g.conn.execute(text(cmd))
+  cmd = "SELECT uid, user_name FROM users WHERE user_name = :recipient";
+  cursor = g.conn.execute(text(cmd), recipient=recipient)
   user = cursor.fetchall()
   exists = len(user)
   if exists:
     uid_receiver = user[0]["uid"]
 
-    cmd = "INSERT INTO dm_sent(uid_sender, body, time_sent) VALUES ({}, '{}', now())".format(uid_sender, message)
-    g.conn.execute(text(cmd))
+    cmd = "INSERT INTO dm_sent(uid_sender, body, time_sent) VALUES (:uid_sender, :message, now())";
+    g.conn.execute(text(cmd), uid_sender=uid_sender, message=message);
 
     did = 0
-    cmd = "SELECT did FROM dm_sent WHERE uid_sender = {} ORDER BY did DESC LIMIT 1".format(uid_sender)
-    cursor = g.conn.execute(text(cmd))
+    cmd = "SELECT did FROM dm_sent WHERE uid_sender = :uid_sender ORDER BY did DESC LIMIT 1";
+    cursor = g.conn.execute(text(cmd), uid_sender=uid_sender);
     for result in cursor:
       did = result['did']
 
-    cmd = "INSERT INTO dm_recv(uid_receiver, uid_sender, did, time_received) VALUES ({}, {}, {}, now())".format(uid_receiver, uid_sender, did)
-    g.conn.execute(text(cmd))
+    cmd = "INSERT INTO dm_recv(uid_receiver, uid_sender, did, time_received) VALUES (:uid_receiver, :uid_sender, :did, now())";
+    g.conn.execute(text(cmd), uid_receiver=uid_receiver, uid_sender=uid_sender, did=did);
 
     return redirect(request.referrer)
 
   else:
     
     return dm_threads(local_var=1, local_uid=uid_sender, exists_issue=1)
-
-
 
 # TODO add user view with list of all posts in a subpage
 @app.route('/user/', methods=['GET'])
@@ -444,24 +447,24 @@ def user():
   uid = request.args.get('uid')
 
   # query for all posts in this sid
-  cmd = 'SELECT p.title, p.body, s.sp_name, s.sid FROM post p, subpages s WHERE p.sid = s.sid and p.uid = {}'.format(uid);
+  # cmd = 'SELECT p.title, p.body, s.sp_name, s.sid FROM post p, subpages s WHERE p.sid = s.sid and p.uid = :uid';
 
   cmd = '''
           select p.title, p.body, s.sp_name, s.sid, p.pid, count(v.*) as vote_count
           from post p left outer join vote v on p.pid = v.pid, subpages s
-          where p.sid = s.sid and p.uid = {}
+          where p.sid = s.sid and p.uid = :uid
           group by p.pid, p.title, p.body, s.sid, s.sp_name
           order by count(v.*) desc;
-        '''.format(uid)
+        ''';
   
-  cursor = g.conn.execute(text(cmd));
+  cursor = g.conn.execute(text(cmd), uid=uid);
 
   posts = []
   for result in cursor:
     posts.append((result['title'], result['body'], result['sp_name'], result['sid'], result['pid'], result['vote_count']))
 
-  cmd = 'SELECT * FROM users WHERE uid = {}'.format(uid);
-  cursor = g.conn.execute(text(cmd));
+  cmd = 'SELECT * FROM users WHERE uid = :uid';
+  cursor = g.conn.execute(text(cmd), uid=uid);
 
   results = cursor.first()
   user_name = results['user_name']
@@ -489,8 +492,8 @@ def unfollowSubpage():
   sid = request.args.get('sid')
   uid = session['uid']
 
-  delete_follow_cmd = 'DELETE FROM follows WHERE sid={} and uid={}'.format(sid, uid);
-  g.conn.execute(text(delete_follow_cmd));
+  delete_follow_cmd = 'DELETE FROM follows WHERE sid=:sid and uid=:uid';
+  g.conn.execute(text(delete_follow_cmd), sid=sid, uid=uid);
 
   return redirect(request.referrer)
 
@@ -501,16 +504,21 @@ def addpost():
   sid = request.args.get('sid')
   title = request.form['title']
   body = request.form['body']
+  body = body.replace("\'", "\'\'")
 
-  cmd = 'INSERT INTO post(uid, sid, title, body, date_posted) VALUES ({}, {}, \'{}\', \'{}\', now())'.format(uid, sid, title, body);
-  g.conn.execute(text(cmd));
+  cmd = 'INSERT INTO post(uid, sid, title, body, date_posted) VALUES (:uid, :sid, :title, :body, now())';
+  g.conn.execute(text(cmd), uid=uid, sid=sid, title=title, body=body);
 
   return redirect(request.referrer)
 
-@app.route('/delpost/', methods=['GET'])
+@app.route('/delpost/', methods=['POST'])
 def delpost():
-  # TODO
-  pass
+  pid = request.args.get("pid")
+
+  cmd = 'DELETE FROM post WHERE pid = :pid;';
+  g.conn.execute(text(cmd), pid=pid)
+
+  return redirect(request.referrer)
 
 # render a page to create a new subpage
 @app.route('/newsubpage', methods=['GET'])
@@ -523,15 +531,14 @@ def addsubpage():
   sp_name = request.form['sp_name']
   description = request.form['description']
 
-  cmd = 'INSERT INTO subpages(sp_name, description) VALUES (\'{}\', \'{}\')'.format(sp_name, description);
-  g.conn.execute(text(cmd));
+  cmd = 'INSERT INTO subpages(sp_name, description) VALUES (:sp_name, :description)';
+  g.conn.execute(text(cmd), sp_name=sp_name, description=description);
 
-  get_new_sid = 'select sid from subpages where sp_name=\'{}\''.format(sp_name);
-  cursor = g.conn.execute(text(get_new_sid));
+  get_new_sid = 'select sid from subpages where sp_name=:sp_name';
+  cursor = g.conn.execute(text(get_new_sid), sp_name=sp_name);
   result = cursor.first()
   sid = result['sid']
 
-  # TODO
   try:
     cursor = g.conn.execute(text(get_new_sid));
   except exc.IntegrityError as e:
