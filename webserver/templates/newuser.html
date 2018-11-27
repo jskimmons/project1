@@ -6,8 +6,27 @@
   <input type="username" name="username" placeholder="Username">
   <input type="password" name="password" placeholder="Password">
   <input type="confirmpass" name="confirmpass" placeholder="Confirm Password">
-  <input type="dob" name="dob" placeholder="Date of Birth"> <p> (Example: TODO)
+  <input type="dob" name="dob" placeholder="Date of Birth (mm/dd/yyyy)"> <p> (Example: me@gmail.com)
   <input type="email" name="email" placeholder="Email">
   <input type="submit" value="Sign Up">
 </form>
+<a href="/">BACK</a>
+{% if integrity_error %}
+<p>User already exists.</p>
+{% endif %}
+{% if date_error %}
+<p>Please input valid date.</p>
+{% endif %}
+{% if no_username %}
+<p>Please enter a username.</p>
+{% endif %}
+{% if no_pswd %}
+<p>Please enter a password.</p>
+{% endif %}
+{% if no_conf %}
+<p>Please confirm your password.</p>
+{% endif %}
+{% if no_email %}
+<p>Please enter an email.</p>
+{% endif %}
 {% endblock %}

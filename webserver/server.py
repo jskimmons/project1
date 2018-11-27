@@ -167,8 +167,9 @@ def login():
 
 # render a page to create a new user
 @app.route('/newuser', methods=['GET'])
-def newuser():
-  return render_template("newuser.html")
+def newuser(integrity_error=0, date_error=0, no_username=0, no_pswd=0, no_conf=0, no_email=0):
+  context = dict(integrity_error=integrity_error, date_error=date_error, no_username=no_username, no_pswd=no_pswd, no_conf=no_conf, no_email=no_email)
+  return render_template("newuser.html", **context)
 
 # logic to add new user to a database
 @app.route('/adduser', methods=['POST'])
@@ -179,14 +180,27 @@ def adduser():
   dob = request.form['dob']
   confirmpass = request.form['confirmpass']
 
+  if username == '':
+    return newuser(no_username=1)
+  if password == '':
+    return newuser(no_pswd=1)
+  if confirmpass == '':
+    return newuser(no_conf=1)
+  if email == '':
+    return newuser(no_email=1)
+    
   if password != confirmpass:
     flash("Passwords do not match!")
     return redirect('/newuser')
 
     # TODO maybe check username already used? email too?
-
-  cmd = 'INSERT INTO users(user_name, password, email, dob) VALUES (:username1, :password1, :email1, :dob1)';
-  g.conn.execute(text(cmd), username1 = username, password1 = password, email1 = email, dob1 = dob);
+  try:
+    cmd = 'INSERT INTO users(user_name, password, email, dob) VALUES (:username1, :password1, :email1, :dob1)';
+    g.conn.execute(text(cmd), username1 = username, password1 = password, email1 = email, dob1 = dob);
+  except exc.IntegrityError as e:
+    return newuser(integrity_error=1)
+  except exc.DataError as e:
+    return newuser(date_error=1)
 
   session['username'] = username
   
