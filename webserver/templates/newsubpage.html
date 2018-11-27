@@ -4,10 +4,15 @@
 </head>
 {% if session['logged_in'] %}
 <form action="/addsubpage" method="POST">
+  <h1> Create a new Subpage </h1>
   <input type="sp_name" name="sp_name" placeholder="Subpage Name">
+  <br>
+  <br>
   <textarea rows="4" cols="50" name="description" placeholder="Description"></textarea>
+  <br>
   <input type="submit" value="Create Page!">
 </form>
+<a href="/">BACK</a>
 {% else %}
 <p> login first! </p>
 <p><a href="/">Login</a></p>
